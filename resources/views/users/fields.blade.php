@@ -1,16 +1,36 @@
-<!-- Name Field -->
+<!-- Nama Lengkap Field -->
 <div class="form-group col-sm-6">
-    {!! Form::label('name', 'Name:') !!}
-    {!! Form::text('name', null, ['class' => 'form-control', 'required']) !!}
+    {!! Form::label('nama_lengkap', 'Nama Lengkap:') !!}
+    {!! Form::text('nama_lengkap', null, ['class' => 'form-control', 'required', 'maxlength' => 255, 'maxlength' => 255]) !!}
+</div>
+
+<!-- Nama Panggilan Field -->
+<div class="form-group col-sm-6">
+    {!! Form::label('nama_panggilan', 'Nama Panggilan:') !!}
+    {!! Form::text('nama_panggilan', null, ['class' => 'form-control', 'required', 'maxlength' => 45, 'maxlength' => 45]) !!}
 </div>
 
 <!-- Email Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('email', 'Email:') !!}
-    {!! Form::email('email', null, ['class' => 'form-control', 'required']) !!}
+    {!! Form::email('email', null, ['class' => 'form-control', 'required', 'maxlength' => 255, 'maxlength' => 255]) !!}
 </div>
 
-<!-- password Field -->
+<!-- Is Approved Field -->
+<div class="form-group col-sm-6">
+    <div class="form-check">
+        {!! Form::hidden('is_approved', 0, ['class' => 'form-check-input']) !!}
+        {!! Form::checkbox('is_approved', '1', null, ['class' => 'form-check-input']) !!}
+        {!! Form::label('is_approved', 'Is Approved', ['class' => 'form-check-label']) !!}
+    </div>
+</div>
+
+@push('page_scripts')
+    <script type="text/javascript">
+        $('#email_verified_at').datepicker()
+    </script>
+@endpush
+
 @if ($isEditPage)
     <div class="form-group col-sm-6">
         {!! Form::label('password', 'Password: ') !!}

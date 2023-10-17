@@ -3,18 +3,22 @@
         <table class="table" id="users-table">
             <thead>
             <tr>
-                <th>Name</th>
+                <th>Nama Lengkap</th>
+                <th>Nama Panggilan</th>
                 <th>Email</th>
-                <th>Remember Token</th>
+                <th>Is Approved</th>
+                <th>Role</th>
                 <th colspan="3">Action</th>
             </tr>
-            </thead>
-            <tbody>
+        </thead>
+        <tbody>
             @foreach($users as $user)
-                <tr>
-                    <td>{{ $user->name }}</td>
-                    <td>{{ $user->email }}</td>
-                    <td>{{ $user->remember_token }}</td>
+            <tr>
+                <td>{{ $user->nama_lengkap }}</td>
+                <td>{{ $user->nama_panggilan }}</td>
+                <td>{{ $user->email }}</td>
+                <td>{{ $user->is_approved == 1 ? 'Yes' : 'No' }}</td>
+                <td>{{ implode(', ', $user->getRoleNames()->toArray()) }}
                     <td  style="width: 120px">
                         {!! Form::open(['route' => ['users.destroy', $user->id], 'method' => 'delete']) !!}
                         <div class='btn-group'>

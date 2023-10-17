@@ -8,8 +8,10 @@ use App\Repositories\BaseRepository;
 class UserRepository extends BaseRepository
 {
     protected $fieldSearchable = [
-        'name',
+        'nama_lengkap',
+        'nama_panggilan',
         'email',
+        'is_approved',
         'email_verified_at',
         'password',
         'remember_token'
