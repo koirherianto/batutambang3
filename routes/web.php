@@ -13,19 +13,17 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+Auth::routes();
 Route::get('/', function () {
     return view('welcome');
 });
 Route::group(['middleware' => 'auth'], function () {
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
-    
+    Route::resource('permissions', App\Http\Controllers\PermissionController::class);
+    Route::resource('users', App\Http\Controllers\UserController::class);
     Route::resource('roles', App\Http\Controllers\RoleController::class);
 });
-
-
-
-Auth::routes();
 
 
 // Route::get('generator_builder', '\InfyOm\GeneratorBuilder\Controllers\GeneratorBuilderController@builder')
@@ -41,5 +39,3 @@ Auth::routes();
 // Route::post('generator_builder/generate-from-file','\InfyOm\GeneratorBuilder\Controllers\GeneratorBuilderController@generateFromFile')
 //    ->name('io_generator_builder_generate_from_file');
 
-Route::resource('permissions', App\Http\Controllers\PermissionController::class);
-Route::resource('users', App\Http\Controllers\UserController::class);
