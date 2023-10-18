@@ -2,109 +2,74 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\AppBaseController;
+use App\Http\Requests\LoginRequest;
+use App\Http\Requests\RegisterUserRequest;
+use App\Http\Requests\UpdateProfileRequest;
+use App\Http\Requests\ChangePasswordRequest;
+use Illuminate\Support\Facades\Validator;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
 use App\Models\User;
 use DB;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
-use App\Http\Controllers\AppBaseController;
 
 class AuthApiController extends AppBaseController
 {
     private $response = [];
 
-    public function register(Request $request)
+    public function register(RegisterUserRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'nama_relawan' => 'required|min:3|max:250',
-            'contact_relawan' => 'required|numeric|unique:users,contact',
-            'email_relawan' => 'required|max:250|email:dns|unique:users,email',
-            'alamat_relawan' => 'required|min:4|max:250',
-            'password_relawan' => 'required|min:6|max:250',
-            'password_confirm_relawan' => 'required|same:password_relawan',
-        ],[
-            'name.min' => 'Nama minimal 3 karakter',
-            'contact.numeric' => 'No hp harus berupa angka',
-            'contact.unique' => 'No Hp Anda sudah terdaftar',
-            'email.email' => 'Format Email anda salah',
-            'email.unique' => 'Email Anda sudah terdaftar',
-            'alamat.min' => 'Masukan alamat yang benar',
-            'password.min' => 'Password Minimal 6 karakter',
-            'password_confirm.same' => 'Kata sandi tidak cocok'
-        ]);
-
-        if ($validator->fails()) {
-            $this->response['success'] = false;
-            $this->response['error'] = $validator->errors();
-            return response()->json($this->response, 200);
-        }
-        
-        
-        try{
+        try {
             DB::beginTransaction();
             $user = User::create([
-                'name' => $request->nama_relawan,
-                'contact' => $request->contact_relawan,
-                'email' => $request->email_relawan,
-                'alamat' => $request->alamat_relawan,
-                'password' => Hash::make($request->password_relawan)
+                'nama_lengkap' => $request->nama_lengkap,
+                'nama_panggilan' => $request->nama_panggilan,
+                'email' => $request->email,
+                'password' => Hash::make($request->password)
             ]);
-            
-            $user->assignRole('admin-kandidat-free');
-            
+
+            if ($request->role == 'mekanik') {
+                $user->assignRole('mekanik');
+            }
+
             DB::commit();
-        }catch (Exception $e){
+
+            return response()->json([
+                'success' => true,
+                'data' => $user,
+                'message' => 'Registrasi Berhasil'
+            ], 200);
+
+
+        } catch (Exception $e) {
             DB::rollBack();
             $this->response['success'] = false;
+            $this->response['message'] = 'Registrasi Gagal. Terjadi kesalahan internal.';
             return response()->json($this->response, 200);
         }
-
-        return $this->sendResponse([], 'Registrasi Success');
     }
 
-    public function login(Request $request)
+
+    public function login(LoginRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'contact' => 'required|numeric|exists:users,contact',
-            'password' => 'required|min:6|max:250',
-        ],[
-            'contact.exists' => 'Nomer anda tidak terdaftar',
-            'contact.numeric' => 'No hp harus berupa angka',
-            'password.min' => 'Password Minimal 6 karakter',
-        ]);
+        $user = User::where('email', $request->email)->first();
 
-
-        if ($validator->fails()) {
-            $this->response['success'] = false;
-            $this->response['error'] = $validator->errors();
-            return response()->json($this->response, 200);
-        }
-
-        $user = User::where('contact', $request->contact)->first();
-
-        //cek user ada
-        if (empty($user)) {
-            $this->response['success'] = false;
-            $this->response['error'] = ['contact' => ['No Hp anda tidak terdaftar']];
-
-            return response()->json($this->response, 200);
-        }
-
-        $hash = Hash::check($request->password, $user->password);
-        if ($hash == false) {
+        if (!auth()->attempt(['email' => $request->email, 'password' => $request->password])) {
             $this->response['success'] = false;
             $this->response['error'] = ['password' => ['Password Anda Salah']];
-            return response()->json($this->response);
+            return response()->json($this->response, 200);
         }
 
         $token = $user->createToken($request->device);
 
         $this->response['success'] = true;
         $this->response['data'] = [
+            'user' => $user,
             'token' => $token->plainTextToken
         ];
+        $this->response['message'] = 'Login Success';
 
         return response()->json($this->response, 200);
     }
@@ -112,98 +77,62 @@ class AuthApiController extends AppBaseController
     public function me()
     {
         $user = Auth::user();
-        $dataRelawans = Relawan::where('id',Auth::user()->relawan->id)->first();
-        $user = [
-            "id" => $user->id,
-            "name" => $user->name,
-            "contact" => $user->contact,
-            "email" => $user->email,
-            "alamat" => $user->alamat,
-            'role' => $user->getRoleNames(),
-            'relawan_id' => $dataRelawans->id,
-            'url_profil'=> $dataRelawans->getFirstMediaUrl(),
-        ];
+
+        $this->unsetUser($user);
+        $user->role = $user->roles->first()->name;
+
         $this->response['success'] = true;
-        $this->response['data'] = $user;
+        $this->response['data'] = [   
+            'user' => $user,
+        ];
+
+        $this->response['message'] = 'Berhasil mendapatkan data user';
+
         return response()->json($this->response, 200);
     }
 
-    public function updatePassword(Request $request)
+    public function updateProfil(UpdateProfileRequest $request)
     {
-        //cek kecocokan password
-        // $hash = Hash::check($request->passwordLama, auth()->user()->password);
-        $hash = Hash::check($request->passwordLama, Auth::user()->password);
+        $user = Auth::user();
 
-        if (!$hash) {
-            $this->response['status'] = 'failed';
-            $this->response['error'] = ['passwordLama' => ['Password Anda Tidak Sesuai']];
-            return response()->json($this->response);
-        }
+        $user->update($request->post());
 
-        $validator = Validator::make($request->all(), [
-            'passwordLama' => 'required|min:6|max:255',
-            'passwordBaru' => 'required|min:6|max:255',
-            'passwordConfirm' => 'same:passwordBaru',
-        ],[
-            'passwordLama.min' => 'Kata Sandi minimal 6 karakter',
-            'passwordBaru.min' => 'Kata Sandi minimal 6 karakter',
-            'passwordConfirm.same' => 'Kata sandi tidak cocok'
-        ]);
+        $this->unsetUser($user);
 
-        if ($validator->fails()) {
-            $this->response['status'] = 'failed';
-            $this->response['error'] = $validator->errors();
-            return response()->json($this->response,200);
-        }
-
-        #Update the new Password
-        $user = User::whereId(auth()->user()->id)->update([
-            'password' => Hash::make($request->passwordBaru)
-        ]);
+        $user->role = $user->roles->first()->name;
 
         $this->response['status'] = 'success';
-        $this->response['data'] = $user;
+        $this->response['data'] = [
+            'user' => $user,
+        ];
+        $this->response['message'] = 'Update Profil Berhasil';
 
         return response()->json($this->response,200);
     }
 
-    public function update(Request $request, User $user)
+    public function updatePassword(ChangePasswordRequest $request)
     {
-        if($user->contact == $request->contact){
-            $contactValidate = 'required|max:255';
-        }else{
-            $contactValidate = 'required|max:255|unique:users,contact';
-        }
-        
+        $user = Auth::user();
+        $hash = Hash::check($request->password_lama, $user->password);
 
-        if($user->email == $request->email){
-            $emailValidate = 'required|max:250|email:dns';
-        }else{
-            $emailValidate = 'required|max:250|email:dns|unique:users,email';
-        }
-
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|min:4|max:255',
-            'contact' => $contactValidate,
-            'email' => $emailValidate,
-            'alamat' => 'required|min:4|max:250',
+        if (!$hash) {
+            $this->response['success'] = false;
+            $this->response['error'] = [
+                'password_lama' => ['Password Anda Tidak Sesuai']
+            ];
+            $this->response['message'] = 'Update Password Gagal. Password Anda Tidak Sesuai';
             
+            return response()->json($this->response);
+        }
+
+        #Update the new Password
+        $user->update([
+            'password' => Hash::make($request->password_baru)
         ]);
 
-        if ($validator->fails()) {
-            $this->response['status'] = 'failed';
-            $this->response['error'] = $validator->errors();
-            return response()->json($this->response,200);
-        }
-
-        $user->update($request->post());
-
-        $dataRelawans = Relawan::where('id',Auth::user()->relawan->id)->first();
-        $user['relawan_id'] = $dataRelawans->id;
-        $user['url_profil'] = $dataRelawans->getFirstMediaUrl();
-
-        $this->response['status'] = 'success';
-        $this->response['data'] = $user;
+        $this->response['success'] = true;
+        $this->response['data'] = [];
+        $this->response['message'] = 'Update Password Berhasil';
 
         return response()->json($this->response,200);
     }
@@ -212,7 +141,15 @@ class AuthApiController extends AppBaseController
     {
         $logout = Auth::user()->currentAccessToken()->delete();
 
+        // hapus semua token user
+        Auth::user()->tokens->each(function ($token, $key) {
+            $token->delete();
+        });
+
         $this->response['success'] = true;
+        $this->response['data'] = [];
+        $this->response['message'] = 'Logout Success';
+
         return response()->json($this->response, 200);
     }
 }
