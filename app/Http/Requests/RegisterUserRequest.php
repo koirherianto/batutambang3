@@ -24,8 +24,8 @@ class RegisterUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nama_lengkap' => 'required|string|max:255',
-            'nama_panggilan' => 'required|string|max:45',
+            'nama_lengkap' => 'required|string|min:4|max:255',
+            'nama_panggilan' => 'required|string|min:4|max:45',
             'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|max:255|min:6',
         ];
@@ -35,10 +35,10 @@ class RegisterUserRequest extends FormRequest
     {
         return [
             'nama_lengkap.required' => 'Nama lengkap harus diisi',
-            'nama_lengkap.min' => 'Nama lengkap minimal 3 karakter',
+            'nama_lengkap.min' => 'Nama lengkap minimal 4 karakter',
             'nama_lengkap.max' => 'Nama lengkap maksimal 250 karakter',
             'nama_panggilan.required' => 'Nama panggilan harus diisi',
-            'nama_panggilan.min' => 'Nama panggilan minimal 3 karakter',
+            'nama_panggilan.min' => 'Nama panggilan minimal 4 karakter',
             'nama_panggilan.max' => 'Nama panggilan maksimal 250 karakter',
             'email.required' => 'Email harus diisi',
             'email.max' => 'Email maksimal 250 karakter',

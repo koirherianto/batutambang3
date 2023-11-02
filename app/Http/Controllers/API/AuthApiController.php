@@ -64,6 +64,8 @@ class AuthApiController extends AppBaseController
 
         $token = $user->createToken($request->device);
 
+        $user->role = $user->roles->first()->name;
+
         $this->response['success'] = true;
         $this->response['data'] = [
             'user' => $user,
@@ -101,7 +103,7 @@ class AuthApiController extends AppBaseController
 
         $user->role = $user->roles->first()->name;
 
-        $this->response['status'] = 'success';
+        $this->response['success'] = true;
         $this->response['data'] = [
             'user' => $user,
         ];
@@ -137,6 +139,25 @@ class AuthApiController extends AppBaseController
         return response()->json($this->response,200);
     }
 
+    public function updateImage(Request $request)
+    {
+        $relawan = $this->relawanRepository->find($id);
+        if (empty($relawan)) {
+            return $this->sendError('relawan not found');
+        }
+
+        if($request->hasFile('gambar_profil')){
+            $relawan->clearMediaCollection();
+
+            $file = $request->file('gambar_profil');
+            $media = $relawan->addMedia($file)->toMediaCollection();
+
+            $relawan['url_profil'] = $relawan->getFirstMediaUrl();
+            
+        }
+        return $this->sendResponse($relawan, 'Gambar success di update');
+    }
+
     public function logout()
     {
         $logout = Auth::user()->currentAccessToken()->delete();
@@ -148,7 +169,7 @@ class AuthApiController extends AppBaseController
 
         $this->response['success'] = true;
         $this->response['data'] = [];
-        $this->response['message'] = 'Logout Success';
+        $this->response['message'] = 'Berhasil Logout';
 
         return response()->json($this->response, 200);
     }
