@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
 use App\Models\User;
+use Spatie\Image\Image;
+use Spatie\Image\Manipulations;
 use DB;
 
 class AuthApiController extends AppBaseController
@@ -65,6 +67,7 @@ class AuthApiController extends AppBaseController
         $token = $user->createToken($request->device);
 
         $user->role = $user->roles->first()->name;
+        $user->url_profil = $user->getFirstMediaUrl('gambar_profil');
 
         $this->response['success'] = true;
         $this->response['data'] = [
@@ -82,6 +85,7 @@ class AuthApiController extends AppBaseController
 
         $this->unsetUser($user);
         $user->role = $user->roles->first()->name;
+        $user->url_profil = $user->getFirstMediaUrl('gambar_profil');
 
         $this->response['success'] = true;
         $this->response['data'] = [   
@@ -98,10 +102,10 @@ class AuthApiController extends AppBaseController
         $user = Auth::user();
 
         $user->update($request->post());
-
         $this->unsetUser($user);
 
         $user->role = $user->roles->first()->name;
+        $user->url_profil = $user->getFirstMediaUrl('gambar_profil');
 
         $this->response['success'] = true;
         $this->response['data'] = [
@@ -139,23 +143,25 @@ class AuthApiController extends AppBaseController
         return response()->json($this->response,200);
     }
 
-    public function updateImage(Request $request)
+    public function updateProfilPicture(Request $request)
     {
-        $relawan = $this->relawanRepository->find($id);
-        if (empty($relawan)) {
-            return $this->sendError('relawan not found');
+        $user = Auth::user();
+        if (empty($user)) {
+            return $this->sendError('User not found');
         }
 
         if($request->hasFile('gambar_profil')){
-            $relawan->clearMediaCollection();
+            $user->clearMediaCollection('gambar_profil');
 
             $file = $request->file('gambar_profil');
-            $media = $relawan->addMedia($file)->toMediaCollection();
 
-            $relawan['url_profil'] = $relawan->getFirstMediaUrl();
-            
+            Image::load($file)->optimize()->save();
+
+            $media = $user->addMedia($file)->toMediaCollection('gambar_profil');
         }
-        return $this->sendResponse($relawan, 'Gambar success di update');
+        
+        $user->url_profil = $user->getFirstMediaUrl('gambar_profil');
+        return $this->sendResponse($user, 'Gambar success di update');
     }
 
     public function logout()
@@ -163,9 +169,9 @@ class AuthApiController extends AppBaseController
         $logout = Auth::user()->currentAccessToken()->delete();
 
         // hapus semua token user
-        Auth::user()->tokens->each(function ($token, $key) {
-            $token->delete();
-        });
+        // Auth::user()->tokens->each(function ($token, $key) {
+        //     $token->delete();
+        // });
 
         $this->response['success'] = true;
         $this->response['data'] = [];
